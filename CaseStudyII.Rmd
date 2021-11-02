@@ -1,0 +1,113 @@
+---
+title: "Case Study 2"
+author: "Kavish Shah"
+date: "02/11/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+
+df <- read.csv('casestudy.csv')
+df <- subset(df, select = -X)
+
+df2 <- subset(df, select= -c(customer_email))
+
+df2 %>% group_by(year) %>% summarise(total_revenue=sum(net_revenue))
+```
+
+
+
+```{r}
+
+yearly <- split(df, f = df$year)
+
+df_2015 <- data.frame(yearly["2015"])
+names(df_2015) <- names(df)
+
+df_2016 <- data.frame(yearly["2016"])
+names(df_2016) <- names(df)
+
+df_2017 <- data.frame(yearly["2017"])
+names(df_2017) <- names(df)
+
+
+new_2016 <- df_2016[!(df_2016$customer_email %in% df_2015$customer_email),]
+new_2016 %>% group_by(year) %>% summarise(New_2016_Revenue=sum(net_revenue))
+
+new_2017 <- df_2017[!(df_2016$customer_email %in% df_2017$customer_email),]
+new_2017 %>% group_by(year) %>% summarise(New_2017_Revenue=sum(net_revenue))
+
+```
+
+Existing Customer Growth
+
+
+```{r}
+common_2016 <- df_2016[df_2016$customer_email %in% df_2015$customer_email,]
+
+existing_2016 <- inner_join(common_2016,df_2015,by="customer_email")
+
+existing_2016$growth <- existing_2016$net_revenue.y - existing_2016$net_revenue.x 
+
+print(head(existing_2016),10)
+
+
+common_2017 <- df_2017[df_2017$customer_email %in% df_2016$customer_email,]
+
+existing_2017 <- inner_join(common_2017,df_2016,by="customer_email")
+
+existing_2017$growth <- existing_2017$net_revenue.y - existing_2017$net_revenue.x 
+
+print(head(existing_2017),10)
+
+```
+
+
+Revenue Lost from Attrition
+
+```{r}
+
+lost_2016 <- new_2016[!(new_2016$customer_email %in% df_2015),]
+
+```
+
+Total Customers Current Year \& Previous Year
+
+```{r}
+total_2015 <- nrow(df_2015)
+total_2016 <- nrow(df_2016)
+total_2017 <- nrow(df_2017)
+print(data.frame(total_2015,total_2016,total_2017))
+```
+
+
+New Customers
+
+```{r}
+print("customers gained in 2016:")
+nrow(new_2016)
+print("customers gained in 2017:")
+nrow(new_2017)
+```
+Lost Customers 
+```{r}
+cust_lost_2016 <- df_2016[!df_2016$customer_email %in% df_2015$customer_email,]
+cust_lost_2017 <- df_2017[!df_2017$customer_email %in% df_2016$customer_email,]
+print("customers lost in 2016:")
+nrow(cust_lost_2016)
+print("customers lost in 2017:")
+nrow(cust_lost_2017)
+```
+
+
+
+
+
+

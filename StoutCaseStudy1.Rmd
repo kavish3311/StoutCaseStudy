@@ -1,0 +1,632 @@
+---
+title: "Lending Club Case Study"
+author: "Kavish Shah"
+date: "01/11/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Case Study 1
+
+-We begin by dropping emp_title as there are more than 4700 unique values and grouping them based on occupation is 
+cumbersome and inconclusive. \newline
+-emp_length was imputed as 8 as more than 75% of the values are 10 and only 8.17% of the values in emp_length 
+were missing \newline
+-Label encoded the following: homeownership, application_type, verification_income_joint, loan_purpose, grade, sub_grade, loan_status, initial_listing_status, disbursement_method. \newline
+-Converted the following to factors: homeownership, application_type, verification_income_joint, loan_purpose, grade, sub_grade, loan_status, initial_listing_status, disbursement_method.\newline
+-Replaced NA values in verification_income_joint from from_verified_income_joint. \newline
+-Replaced NA values in annual_income_joint with annual_income. \newline
+-Replaced NA values in debt_to_income_joint with debt_to_income. \newline
+-Dropped annual_income, debt_to_income_ratio to prevent multicollinearity. \newline
+-Imputed Median Values for months_since_90d_late, months_since_last_delinq. \newline
+-impute Q1 Values for months_since_last_credit_inquiry as the histogram was highly skewed to the left. \newline
+-Looking at the data profiling report obtained from Pandas Profiling, dropped the following skewed columns plagued with 0s: delinq_2y,total_collection_amount_ever,num_mort_accounts,tax_liens,paid_late_fees,num_historical_failed_to_pay,nu  m_collections_last_12m,current_accounts_delinq,num_accounts_30d_past_due. \newline
+-Removed the following columns, which are highly correlated with each other:total_credit_lines,num_open_cc_accounts,num_satisfactory_accounts,total_credit_lines,  open_credit_lines,total_credit_lines,total_credit_utilized,num_satisfactory_accounts
+
+
+
+```{r warning=FALSE}
+require(CatEncoders)
+
+df <- read.csv("loans_full_schema.csv")
+
+
+#Data Cleaning
+
+
+#Drop emp_title as it has 4700+ categories
+
+df <- subset(df, select = -emp_title)
+
+#Label encoding
+
+homeownership <- unique(df$homeownership)
+lab_enc <- LabelEncoder.fit(homeownership)
+df$homeownership <- transform(lab_enc, df$homeownership)
+
+
+df$verification_income_joint[df$verification_income_joint == ""] <- NA
+
+#verified_income_joint
+
+for(i in 1:nrow(df)){
+  
+      if(is.na(df$verification_income_joint[i])){
+        
+          df$verification_income_joint[i] <- df$verified_income[i]
+          
+        
+      } else { df$verification_income_joint[i] = df$verification_income_joint[i]}
+  
+  
+}
+
+verified_income_joint <- unique(df$verification_income_joint)
+lab_enc_income_j <- LabelEncoder.fit(verified_income_joint)
+df$verification_income_joint <- transform(lab_enc_income_j,df$verification_income_joint)
+
+
+verified_income <- unique(df$verified_income)
+lab_enc_income <- LabelEncoder.fit(verified_income) 
+df$verified_income <- transform(lab_enc_income,df$verified_income)
+
+# Drop verified_income to avoid curse of multicollinearity
+df <- subset(df, select = -verified_income)
+
+
+loan_purpose <- unique(df$loan_purpose)
+lab_enc_loan_purpose <- LabelEncoder.fit(loan_purpose) 
+df$loan_purpose <- transform(lab_enc_loan_purpose,df$loan_purpose)
+
+
+application_type <- unique(df$application_type)
+lab_enc_app_type <- LabelEncoder.fit(application_type)
+df$application_type <- transform(lab_enc_app_type,df$application_type)
+
+loan_status <- unique(df$loan_status)
+lab_enc_ln_status <- LabelEncoder.fit(loan_status)
+df$loan_status <- transform(lab_enc_ln_status,df$loan_status)
+
+
+initial_listing_status <- unique(df$initial_listing_status)
+lab_enc_ls <- LabelEncoder.fit(initial_listing_status)
+df$initial_listing_status <- transform(lab_enc_ls,df$initial_listing_status)
+
+
+disbursement_method <- unique(df$disbursement_method)
+lab_enc_dsbm <- LabelEncoder.fit(disbursement_method)
+df$disbursement_method <- transform(lab_enc_dsbm,df$disbursement_method)
+
+
+#Appropriate Data Type conversion
+
+fact_cols <- c("homeownership","verification_income_joint","loan_purpose", 
+                  "application_type","grade","sub_grade","loan_status"
+               ,"initial_listing_status","disbursement_method")
+
+
+df[,fact_cols] <- lapply(df[,fact_cols],as.factor)
+
+
+
+#Dealing with Missing Data
+
+
+
+#Annual Income Joint
+
+for(i in 1:nrow(df)){
+  
+      if(is.na(df$annual_income_joint[i])){
+        
+          df$annual_income_joint[i] <- df$annual_income[i]
+          
+        
+      } else { df$annual_income_joint[i] = df$annual_income_joint[i]}
+  
+  
+}
+
+
+#Drop Annual Income to prevent Multicollinearity
+
+
+df <- subset(df, select = -annual_income)
+
+
+#Debt to Income Ratio Joint
+
+for(i in 1:nrow(df)){
+  
+      if(is.na(df$debt_to_income_joint[i])){
+        
+          df$debt_to_income_joint[i] <- df$debt_to_income[i]
+          
+        
+      } else { df$debt_to_income_joint[i] = df$debt_to_income_joint[i]}
+  
+  
+}
+
+
+#Drop Debt to Income Ratio to prevent Multicollinearity
+
+
+df <- subset(df, select = -debt_to_income)
+
+
+
+#impute Q3 Value for emp_length
+
+df$emp_length[is.na(df$emp_length)] <- 8.0
+
+# impute Median Values for months_since_90d_late
+
+summary(na.omit(df$months_since_90d_late))
+
+df$months_since_90d_late[is.na(df$months_since_90d_late)] <- 47.0
+
+
+# impute Median Values for months_since_last_delinq
+
+summary(na.omit(df$months_since_last_delinq))
+
+df$months_since_last_delinq[is.na(df$months_since_last_delinq)] <- 34.0
+
+
+# impute Q1 Values for months_since_last_credit_inquiry
+
+summary(na.omit(df$months_since_last_credit_inquiry))
+
+df$months_since_last_credit_inquiry[is.na(df$months_since_last_credit_inquiry)] <- 2.0
+
+
+# Drop num_accounts_120d_past_due
+
+df <- subset(df, select = -num_accounts_120d_past_due)
+
+
+
+#Looking at the data profiling report obtained from Pandas Profiling
+
+
+#Drop Skewed columns plagued with zeros
+
+
+df <- subset(df, select = -c(delinq_2y,total_collection_amount_ever,
+                             num_mort_accounts,tax_liens,paid_late_fees,
+                             num_historical_failed_to_pay,
+                             num_collections_last_12m,current_accounts_delinq,
+                             num_accounts_30d_past_due))
+
+
+#Remove columns which are highly correlated with each other 
+
+
+df <- subset(df, select = -c(total_credit_lines,num_open_cc_accounts,
+                             num_satisfactory_accounts,total_credit_lines,
+                             open_credit_lines,total_credit_lines,
+                             total_credit_utilized,num_satisfactory_accounts))
+
+
+#write.csv(df,filename="CleanedLCData.csv)
+```
+
+## Data Visualization
+
+-Plotted a few variables against Interest rates to better understand their behavior.
+
+```{r message=FALSE, warning=FALSE}
+#DATA VIZ
+
+require(ggplot2)
+require(choroplethr)
+require(choroplethrMaps)
+require(dplyr)
+
+dataviz <- read.csv("CleanedLCData.csv")
+dataviz <- subset(dataviz, select = c(interest_rate, total_credit_utilized, debt_to_income_joint,
+                                      grade, sub_grade, inquiries_last_12m, total_debit_limit))
+dataviz1 <- dataviz %>% group_by(interest_rate) %>% summarise(total_credit_utilized=mean(total_credit_utilized))
+dataviz2 <- dataviz %>% group_by(interest_rate) %>% summarise(debt_to_income_joint=mean(debt_to_income_joint))
+dataviz3 <- dataviz %>% group_by(interest_rate) %>% summarise(inquiries_last_12m=mean(inquiries_last_12m))
+dataviz4 <- dataviz %>% group_by(interest_rate) %>% summarise(total_debit_limit=mean(total_debit_limit))
+ogdata <-read.csv("loans_full_schema.csv")
+```
+
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+data(dataviz, package = "ggplot2")
+
+
+# Scatterplot
+totalcredvsIR <- ggplot(dataviz1, aes(y=total_credit_utilized, x=interest_rate)) + 
+        geom_smooth(method="loess", se=F) +
+        geom_point() +
+        labs(subtitle="total_credit_utilized Vs Interest Rates", 
+             x="interest_rates", 
+             y="total_credit_utilized")
+plot(totalcredvsIR)
+```
+We observe here that interest rate gradually increases as total credit utilized increases.
+
+
+```{r message=FALSE, warning=FALSE}
+dtivsIR <- ggplot(dataviz2, aes(y=debt_to_income_joint, x=interest_rate)) + 
+        geom_smooth(method="loess", se=F) +
+        geom_point() +
+        labs(subtitle="debt_to_income_joint Vs Interest Rates", 
+             x="interest_rates", 
+             y="debt_to_income_joint")
+plot(dtivsIR)
+```
+Debt to income ratio (joint) is directly related to interest rate.
+
+```{r message=FALSE, warning=FALSE}
+inquiriesvsIR <- ggplot(dataviz3, aes(y=inquiries_last_12m, x=interest_rate)) + 
+        geom_smooth(method="loess", se=F) +
+        geom_point() +
+        labs(subtitle="inquiries_last_12m Vs Interest Rates", 
+             x="interest_rates", 
+             y="inquiries_last_12m")
+plot(inquiriesvsIR)
+```
+Borrowers with more inquiries in the lat 12 months are more likely to be charged a higher interest rate.
+
+```{r message=FALSE, warning=FALSE}
+debitlimvsIR <- ggplot(dataviz4, aes(y=total_debit_limit, x=interest_rate)) + 
+        geom_smooth(method="loess", se=F) +
+        geom_point() +
+        labs(subtitle="total_debit_limit Vs Interest Rates", 
+             x="interest_rates", 
+             y="total_debit_limit")
+plot(debitlimvsIR)
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+##scatbox grade vs IR
+ggplot(dataviz, aes(x = interest_rate, 
+                     y = grade, 
+                     color=sub_grade)) +
+        geom_point(size=5) +
+        labs(title = "IR distribution by grade and subgrade")
+
+```
+This is a direct indication that interest rates are directly dictated by loan grades and subgrades.
+
+```{r message=FALSE, warning=FALSE}
+df_viz <- data.frame(cbind(df$state,df$annual_income_joint))
+
+names(df_viz) <- c("region","value")
+
+df_viz$value <- as.numeric(df_viz$value)
+
+df_viz <- df_viz %>% group_by(region) %>% summarise(value=sum(value))
+
+
+#Data For Iowa is Missing
+
+new_row <- c("ia",0)
+
+df_viz <- rbind(df_viz[1:12, ],new_row,df_viz[- (1:12), ])  
+
+data("state.regions")
+df_viz$region <- state.regions$region          
+df_viz$abb <- state.regions$abb
+df_viz$fips.numeric <- state.regions$fips.numeric
+df_viz$fips.character <- state.regions$fips.character
+df_viz$value <- as.numeric(df_viz$value)
+df_viz$value <- df_viz$value / 10000
+
+
+# create the map
+state_choropleth(df_viz,num_colors=9) +
+  scale_fill_brewer(palette="YlOrBr") +
+  labs(title = "Annual Income By States multiples of $10K",
+       fill = "Percent")
+
+
+
+```
+
+
+```{r message=FALSE, warning=FALSE}
+require(ggcorrplot)
+
+df_pairs <- select_if(df,is.numeric)
+
+df_pairs <- subset(df_pairs, select = c(annual_income_joint,
+                                        debt_to_income_joint,
+                                        total_credit_limit,
+                                        total_debit_limit,loan_amount,
+                                        interest_rate,installment,
+                                        balance,paid_total,paid_principal,
+                                        paid_interest))
+
+
+r <- round(cor(df_pairs, use="complete.obs"),1)
+
+
+ggcorrplot(r,hc.order = TRUE,type = "lower",lab = TRUE)
+
+```
+Correlation plot to visualize correlation between predictor variables to ensure that multicollinearity does not exist.
+
+# Machine Learning 
+
+## Approach 1
+
+### Linear regression
+
+
+Linear regression. 
+
+We evaluate the models based on Train Mean Squared Error, 
+Test Mean Squared Error and $Adjusted R^{2}$
+
+```{r warning=FALSE}
+require(caTools)
+
+set.seed(101)
+
+# Remove columns with High cardinality
+df <- subset(df, select = -c(state,earliest_credit_line,issue_month))
+
+
+summary(df)
+
+#Train-Test Split, 65% SplitRatio
+
+sample <- sample.split(df$interest_rate, SplitRatio = 0.65)
+
+df.train <- subset(df,sample == T)
+df.test <- subset(df,sample == F)
+
+train <- df.train
+test <- df.test
+
+ir_lm <- lm(interest_rate~., data = train)
+summary(ir_lm)
+
+
+#NAs in Summary of linear model mean the presence of a rank deficient matrix
+
+lm_train_pred <- predict(ir_lm,train)
+lm_test_pred <- predict(ir_lm, test)
+   
+lm_train_mse <- mean((train$interest_rate - lm_train_pred)^2)
+cat("Train MSE of Linear Regression is:", lm_train_mse,'\n')
+lm_test_mse <- mean((test$interest_rate - lm_test_pred)^2)
+cat("Test MSE of Linear Regression is:", lm_test_mse,'\n')
+cat("Adjusted R^2 of Linear Regression is: ",0.9989,'\n')
+
+```
+
+
+### Gradient Boosting Methods 
+
+```{r}
+require(gbm)
+ir_gbm <- gbm(interest_rate ~ ., data = train, distribution = "gaussian"
+                 ,n.trees = 1000, shrinkage = 0.05)
+summary(ir_gbm)
+
+gbm_train_pred <- predict(ir_gbm, train, n.trees = 1000)
+gbm_test_pred <- predict(ir_gbm, test, n.trees = 1000)
+
+ir_gbm_train_MSE <- mean((train$interest_rate - gbm_train_pred)^2)
+cat("Training MSE of boosted tree is:", ir_gbm_train_MSE,'\n')
+ir_gbm_test_MSE <- mean((test$interest_rate - gbm_test_pred)^2)
+cat("Test MSE of boosted tree is:", ir_gbm_test_MSE,'\n')
+
+
+sse_gbm <- sum((test$interest_rate-gbm_test_pred)^2)
+sst_gbm <- sum((mean(test$interest_rate)-test$interest_rate)^2)
+gbm_r2 <- 1 - (sse_gbm/sst_gbm)
+cat("R^2 for Boosted model:", gbm_r2)
+```
+
+
+
+From the summary of both the models, it is evident that grade and sub_grade are 
+the most important features when it comes to predicting the interest rates.  
+
+This is expected because the features grade and sub-grade for an observation 
+essentially bucket the creditors according to their risk profiles. Interest
+rate for each creditor is dictated by their risk profiles. For a creditor
+with poor credit and a history of defaults, Lending Club is exposed to unwanted
+risk and the propensity of default, hence the higher interest rates. The converse
+of this statement also holds true: lower interest rates for creditors with good
+credit and low default-risk. 
+
+
+## Approach 2
+
+Exploring the relationship between variables and interest rates with grade and
+sub_grade features removed. 
+
+```{r}
+
+new_df <- subset(df, select = -c(grade,sub_grade))
+
+
+sample1 <- sample.split(new_df$interest_rate, SplitRatio = 0.65)
+
+df.train1 <- subset(new_df,sample1 == T)
+df.test1 <- subset(new_df,sample1 == F)
+
+train1 <- df.train1
+test1 <- df.test1
+
+
+ir_lm1 <- lm(interest_rate~., data = train1)
+summary(ir_lm1)
+
+lm_train_pred1 <- predict(ir_lm1,train1)
+lm_test_pred1 <- predict(ir_lm1, test1)
+   
+lm_train_mse1 <- mean((train1$interest_rate - lm_train_pred1)^2)
+cat("Train MSE of Linear Regression is:", lm_train_mse1,'\n')
+lm_test_mse1 <- mean((test1$interest_rate - lm_test_pred1)^2)
+cat("Test MSE of Linear Regression is:", lm_test_mse1,'\n')
+cat("Adjusted R^2 of Linear Regression is: ",0.7059,'\n')
+```
+
+### Gradient Boosting Methods
+
+
+```{r}
+
+ir_gbm1 <- gbm(interest_rate ~ ., data = train1, distribution = "gaussian"
+                 ,n.trees = 1000, shrinkage = 0.05)
+summary(ir_gbm1)
+
+gbm_train_pred1 <- predict(ir_gbm1, train1, n.trees = 1000)
+gbm_test_pred1 <- predict(ir_gbm1, test1, n.trees = 1000)
+
+ir_gbm_train_MSE1 <- mean((train1$interest_rate - gbm_train_pred1)^2)
+cat("Training MSE of boosted tree is:", ir_gbm_train_MSE1,'\n')
+ir_gbm_test_MSE1 <- mean((test1$interest_rate - gbm_test_pred1)^2)
+cat("Test MSE of boosted tree is:", ir_gbm_test_MSE1,'\n')
+
+
+sse_gbm1 <- sum((test1$interest_rate-gbm_test_pred1)^2)
+sst_gbm1 <- sum((mean(test1$interest_rate)-test1$interest_rate)^2)
+gbm_1_r2 <- 1 - (sse_gbm1/sst_gbm1)
+cat("R^2 for Boosted model:", gbm_1_r2)
+
+```
+
+
+GBM performs better than the Linear regression model in terms of Train MSE, Test
+MSE and $Adjusted R^{2}$ 
+
+
+### Enhancements to the GBM Model
+
+Try different tree values to achieve lowest possible test error
+
+```{r}
+trees <- c(500,750,1000,1500,2000)
+length.trees <- length(trees)
+
+gbm_train_errors_t <- rep(-1, length.trees)
+gbm_test_errors_t <- rep(-1, length.trees)
+
+for (i in 1:length.trees){
+gbm_t <- gbm(interest_rate ~ ., data = train1, distribution = "gaussian"
+                 ,n.trees = trees[i], shrinkage = 0.05)
+gbm_train_pred_t <- predict(gbm_t, train1)
+gbm_test_pred_t <- predict(gbm_t, test1)
+gbm_train_errors_t[i]<-mean((train1$interest_rate- gbm_train_pred_t)^2)
+gbm_test_errors_t[i] <- mean((test1$interest_rate - gbm_test_pred_t)^2)
+}
+
+
+ggplot(data.frame(x=trees, y=gbm_test_errors_t), aes(x=x, y=y))+
+               xlab("ntrees") + ylab("Test MSE")+
+               geom_point(color="steelblue", size = 2, alpha=.8)
+
+min(gbm_test_errors_t)
+trees[which.min(gbm_test_errors_t)]
+
+```
+
+
+We fix n.trees to 2000 and try different values of shrinkage($\lambda$) parameter
+
+```{r}
+
+lambdas <- seq(0.01,0.10,by=0.01)
+length.shrinkage <- length(lambdas)
+
+gbm_train_errors_s <- rep(-1, length.shrinkage)
+gbm_test_errors_s <- rep(-1, length.shrinkage)
+
+for (i in 1:length.shrinkage){
+gbm_s <- gbm(interest_rate ~ ., data = train1, distribution = "gaussian"
+                 ,n.trees = 2000, shrinkage = lambdas[i])
+gbm_train_pred_s <- predict(gbm_s, train1)
+gbm_test_pred_s <- predict(gbm_s, test1)
+gbm_train_errors_s[i]<-mean((train1$interest_rate - gbm_train_pred_s)^2)
+gbm_test_errors_s[i] <- mean((test1$interest_rate - gbm_test_pred_s)^2)
+}
+
+
+ggplot(data.frame(x=lambdas, y=gbm_test_errors_s), aes(x=x, y=y))+
+               xlab("Lambdas") + ylab("Test MSE")+
+               geom_point(color="steelblue", size = 2, alpha=.8)
+
+min(gbm_test_errors_s)
+lambdas[which.min(gbm_test_errors_s)]
+
+
+```
+
+K-Fold Cross Validation for GBM model with $\lambda = 0.10$ and $n.tree=2000$
+
+```{r}
+
+gbm_cv <- gbm(interest_rate ~ .,data = train1, distribution = "gaussian"
+                 ,n.trees = 2000, shrinkage = 0.10,cv.folds=10)
+
+gbmcv_train_pred <- predict(gbm_cv, train1)
+gbmcv_test_pred <- predict(gbm_cv, test1)
+gbmcv_train_errors2 <- mean((train1$interest_rate - gbmcv_train_pred)^2)
+
+gbmcv_test_errors <- mean((test1$interest_rate - gbmcv_test_pred)^2)
+cat("Test MSE for GBM CV:",gbmcv_test_errors)
+
+sse_gbmcv <- sum((test1$interest_rate-gbmcv_test_pred)^2)
+sst_gbmcv <- sum((mean(test1$interest_rate)-test1$interest_rate)^2)
+gbmcv_r2 <- 1 - (sse_gbmcv/sst_gbmcv)
+cat("R^2 for GBM CV:", gbmcv_r2)
+
+```
+
+
+Visualize Test Results
+
+
+```{r}
+library(ggplot2)
+
+idx <- seq(1,length(test1$interest_rate))
+predictions <- data.frame(idx,sort(gbmcv_test_pred),sort(test1$interest_rate))
+
+predictions1 <- predictions %>% group_by(sort.test1.interest_rate.) %>% summarise_each(funs(mean)) 
+predictions1$idx <- seq(1,nrow(predictions1))
+names(predictions1) <- c("Actual","index","Predicted")
+
+
+ggplot(predictions1,aes(x=index))+
+  geom_line(aes(y=Actual,color='Actual'))+
+  geom_line(aes(y=Predicted,color='Predicted'))+
+  scale_color_manual(values=c("Actual" = "darkred","Predicted"="steelblue"))+
+  labs(xlab='Index',ylab='Predicted vs Actual')
+```
+
+
+Further enhancements to the GBM Model could include conducting a GridSearch Cross validation to find hyperparameters
+over a wider range of n.tree and shrinkage($\lambda$) values. Given more time, I would change the imputation strategy
+for missing values and try out different models that might improve the fit. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
